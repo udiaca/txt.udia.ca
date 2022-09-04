@@ -7,6 +7,9 @@ export interface Env {
 const HLJS_SITE = "https://highlightjs.org/";
 const HLJS_LANGS =
   "https://github.com/highlightjs/highlight.js/blob/main/SUPPORTED_LANGUAGES.md";
+const TXT_SOURCE = "https://github.com/udiaca/txt.udia.ca";
+const T0_SOURCE = "https://github.com/tannercollin/t0txt";
+const SPRUNGE_SOURCE = "https://github.com/rupa/sprunge";
 
 const getForm = (
   origin: string
@@ -48,9 +51,9 @@ EXAMPLES
     ~$ firefox ${origin}/8gad9?py
 
 SEE ALSO
-    https://github.com/udiaca/txt.udia.ca
-    https://github.com/tannercollin/t0txt
-    https://github.com/rupa/sprunge
+    <a href="${TXT_SOURCE}">${TXT_SOURCE}</a>
+    <a href="${T0_SOURCE}">${T0_SOURCE}</a>
+    <a href="${SPRUNGE_SOURCE}">${SPRUNGE_SOURCE}</a>
 </pre>
 </html>`;
 
