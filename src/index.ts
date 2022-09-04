@@ -95,28 +95,33 @@ const fetch = async (request: Request, env: Env, ctx: ExecutionContext) => {
       }>(key);
       const rawTxtData = rawTxtDataWithMeta.value;
       if (!rawTxtData) {
-        return new Response("not found", {
-          status: 400,
+        return new Response("not found\n", {
+          status: 404,
         });
       }
-
-      const language = url.search.slice(1);
-      const txtHighlightData = !!language
-        ? hljs.highlight(rawTxtData, { language })
-        : hljs.highlightAuto(rawTxtData);
-
-      const detectedLang = txtHighlightData.language;
-      const txtData = txtHighlightData.value;
-
-      const resp = new Response(txtBody(txtData), {
-        headers: {
-          "content-type": "text/html",
-        },
-      });
-      if (detectedLang) {
-        resp.headers.set("text-language", detectedLang);
-      }
       const createdAt = rawTxtDataWithMeta.metadata?.createdAt;
+      const accept = request.headers.get("accept");
+      let resp = new Response(rawTxtData);
+
+      if (accept && accept.includes("text/html")) {
+        const language = url.search.slice(1);
+        const txtHighlightData = !!language
+          ? hljs.highlight(rawTxtData, { language })
+          : hljs.highlightAuto(rawTxtData);
+
+        const detectedLang = txtHighlightData.language;
+        const txtData = txtHighlightData.value;
+
+        resp = new Response(txtBody(txtData), {
+          headers: {
+            "content-type": "text/html",
+          },
+        });
+        if (detectedLang) {
+          resp.headers.set("text-language", detectedLang);
+        }
+      }
+
       if (createdAt) {
         resp.headers.set("text-created-at", createdAt);
       }
@@ -128,13 +133,32 @@ const fetch = async (request: Request, env: Env, ctx: ExecutionContext) => {
       const isWeb = formData.get("web");
 
       if (!rawTxtData) {
-        return new Response("txt formData must be defined", {
+        return new Response("txt formData must be defined\n", {
           status: 400,
         });
       }
 
       const txtData =
         typeof rawTxtData === "string" ? rawTxtData : rawTxtData.stream();
+      const byteSize =
+        typeof rawTxtData === "string"
+          ? new TextEncoder().encode(rawTxtData).byteLength
+          : rawTxtData.size;
+
+      // 500 KiB file size limit
+      const limit = 524288;
+      if (byteSize > limit) {
+        return new Response(
+          `exceeds byte size limit of ${limit} bytes (payload is ${byteSize} bytes)\n`,
+          {
+            status: 413,
+            headers: {
+              limit: `${limit}`,
+              length: `${byteSize}`,
+            },
+          }
+        );
+      }
 
       const key = makeId();
       const opt: KVNamespacePutOptions = {
@@ -154,7 +178,7 @@ const fetch = async (request: Request, env: Env, ctx: ExecutionContext) => {
       });
     }
     default:
-      return new Response("method not allowed", {
+      return new Response("method not allowed\n", {
         status: 405,
       });
   }
