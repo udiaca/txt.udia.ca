@@ -28,7 +28,7 @@ NAME
 USAGE
     &lt;command&gt; | curl -F 'txt=&lt;-' ${origin}
 
-    or submit using the following formData${getForm(origin)}
+    or submit using the following form${getForm(origin)}
 
 DESCRIPTION
     Entries will be automatically highlighted using <a href='${HLJS_SITE}'>highlight.js</a>.
