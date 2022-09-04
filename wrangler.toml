@@ -1,0 +1,7 @@
+name = "txt-udia-ca"
+main = "src/index.ts"
+compatibility_date = "2022-09-04"
+
+kv_namespaces = [
+  { binding = "txtblob", id = "4462987a337049fbb84c7bdcbfb638ba", preview_id = "090e9a25825846709c9d9ae286c52f44" }
+]
