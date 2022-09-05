@@ -1,4 +1,5 @@
 import hljs from "highlight.js";
+import { bestMatch } from "@udia/mime-parser";
 
 export interface Env {
   txtblob: KVNamespace;
@@ -103,7 +104,9 @@ const fetch = async (request: Request, env: Env, ctx: ExecutionContext) => {
       const accept = request.headers.get("accept");
       let resp = new Response(rawTxtData);
 
-      if (accept && accept.includes("text/html")) {
+      const match = bestMatch(["text/plain", "text/html"], accept || "");
+
+      if (match === "text/html") {
         const language = url.search.slice(1);
         const txtHighlightData = !!language
           ? hljs.highlight(rawTxtData, { language })

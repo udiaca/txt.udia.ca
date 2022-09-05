@@ -16,6 +16,7 @@
     "deploy": "wrangler publish"
   },
   "dependencies": {
+    "@udia/mime-parser": "^1.0.0",
     "highlight.js": "^11.6.0"
   }
 }
