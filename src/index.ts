@@ -5,6 +5,7 @@ export interface Env {
   txtblob: KVNamespace;
   CF_TURNSTILE_SITE_KEY: string | undefined;
   CF_TURNSTILE_SECRET_KEY: string | undefined;
+  UDIA_SECRET_KEY: string | undefined;
 }
 
 const HLJS_SITE = "https://highlightjs.org/";
@@ -51,7 +52,7 @@ DESCRIPTION
 
     alias txt=" \\
     sed -r 's/\[([0-9]{{1,2}}(;[0-9]{{1,2}})?)?[m|K]//g' \\
-    | curl -F 'txt=<-' ${origin}"
+    | curl -H 'UDIA-SECRET-KEY: udiasecretkeyvalue' -F 'txt=<-' ${origin}"
 
 EXAMPLES
     ~$ echo 'print("Hello world!")' | curl -F 'txt=&lt;-' ${origin}
@@ -87,13 +88,16 @@ const main = async (request: Request, env: Env, ctx: ExecutionContext) => {
   const url = new URL(request.url);
   const origin = url.origin;
 
-  const { CF_TURNSTILE_SITE_KEY, CF_TURNSTILE_SECRET_KEY } = env;
+  const { CF_TURNSTILE_SITE_KEY, CF_TURNSTILE_SECRET_KEY, UDIA_SECRET_KEY } = env;
 
   if (!CF_TURNSTILE_SITE_KEY) {
     return new Response("CF_TURNSTILE_SITE_KEY must be defined", { status: 500 });
   }
   if (!CF_TURNSTILE_SECRET_KEY) {
     return new Response("CF_TURNSTILE_SECRET_KEY must be defined", { status: 500 });
+  }
+  if (!UDIA_SECRET_KEY) {
+    return new Response("UDIA_SECRET_KEY must be defined", { status: 500 });
   }
 
   switch (method) {
@@ -152,9 +156,7 @@ const main = async (request: Request, env: Env, ctx: ExecutionContext) => {
       const isWeb = formData.get("web");
 
 
-      // Validate the token by calling the "/siteverify" API.
       if (isWeb) {
-        // quick check for web captcha
         const token = formData.get('cf-turnstile-response');
         const ip = request.headers.get('CF-Connecting-IP');
         if (!token) {
@@ -164,11 +166,12 @@ const main = async (request: Request, env: Env, ctx: ExecutionContext) => {
           return new Response("CF-Connecting-IP header must be defined", { status: 400 });
         }
 
-        let turnstileFormData = new FormData();
+        const turnstileFormData = new FormData();
         turnstileFormData.append('secret', CF_TURNSTILE_SECRET_KEY);
         turnstileFormData.append('response', token);
         turnstileFormData.append('remoteip', ip);
 
+        // Validate the token by calling the "/siteverify" API.
         const turnstileResult = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
           body: turnstileFormData,
           method: 'POST',
@@ -179,6 +182,16 @@ const main = async (request: Request, env: Env, ctx: ExecutionContext) => {
           return new Response('The provided Turnstile token was not valid! \n' + JSON.stringify(outcome), { status: 400 });
         }
   
+      } else {
+        // this is a post request made by something like CURL
+        // ensure the header UDIA_SECRET_KEY is supplied and matches server key
+        const reqUdiaSecretKey = request.headers.get('UDIA-SECRET-KEY');
+        if (!reqUdiaSecretKey) {
+          return new Response("UDIA-SECRET-KEY header must be defined", { status: 400 });
+        }
+        if (reqUdiaSecretKey != UDIA_SECRET_KEY) {
+          return new Response("UDIA-SECRET-KEY header does not match server", { status: 400 });
+        }
       }
 
       if (!rawTxtData) {
