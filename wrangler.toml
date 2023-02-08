@@ -3,5 +3,8 @@ main = "src/index.ts"
 compatibility_date = "2022-09-04"
 
 kv_namespaces = [
-  { binding = "txtblob", id = "4462987a337049fbb84c7bdcbfb638ba", preview_id = "090e9a25825846709c9d9ae286c52f44" }
+  { binding = "txtblob", id = "a79031f374b446cbaf25273b0ee54a5a", preview_id = "7bbb5892ea7c4cb58318102811bb8a3d" }
 ]
+
+[vars]
+CF_TURNSTILE_SITE_KEY = "0x4AAAAAAACaLZCIoPI6458r"

@@ -3,6 +3,8 @@ import { bestMatch } from "@udia/mime-parser";
 
 export interface Env {
   txtblob: KVNamespace;
+  CF_TURNSTILE_SITE_KEY: string | undefined;
+  CF_TURNSTILE_SECRET_KEY: string | undefined;
 }
 
 const HLJS_SITE = "https://highlightjs.org/";
@@ -13,16 +15,21 @@ const T0_SOURCE = "https://github.com/tannercollin/t0txt";
 const SPRUNGE_SOURCE = "https://github.com/rupa/sprunge";
 
 const getForm = (
-  origin: string
+  origin: string,
+  cfTurnstileSiteKey: string
 ) => `<form action="${origin}" method="POST" accept-charset="UTF-8">
 <input name="web" type="hidden" value="true">
 <textarea name="txt" cols="60" rows="8"></textarea>
+<div class="cf-turnstile" data-sitekey="${cfTurnstileSiteKey}"></div>
 <br><button type="submit">Submit</button></form>`;
 
-const mainBody = (origin: string) => `<!DOCTYPE html>
+const mainBody = (origin: string, cfTurnstileSiteKey: string) => `<!DOCTYPE html>
 <html>
+<head>
 <title>txt.udia.ca</title>
 <style>a { text-decoration: none }</style>
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+</head>
 <pre>
 txt.udia.ca(1)                    txt.udia.ca                    txt.udia.ca(1)
 
@@ -32,7 +39,7 @@ NAME
 USAGE
     &lt;command&gt; | curl -F 'txt=&lt;-' ${origin}
 
-    or submit using the following form${getForm(origin)}
+    or submit using the following form${getForm(origin, cfTurnstileSiteKey)}
 
 DESCRIPTION
     Entries will be automatically highlighted using <a href='${HLJS_SITE}'>highlight.js</a>.
@@ -75,16 +82,25 @@ const makeId = (len = 5) => {
   return nId.join("");
 };
 
-const fetch = async (request: Request, env: Env, ctx: ExecutionContext) => {
+const main = async (request: Request, env: Env, ctx: ExecutionContext) => {
   const method = request.method;
   const url = new URL(request.url);
   const origin = url.origin;
+
+  const { CF_TURNSTILE_SITE_KEY, CF_TURNSTILE_SECRET_KEY } = env;
+
+  if (!CF_TURNSTILE_SITE_KEY) {
+    return new Response("CF_TURNSTILE_SITE_KEY must be defined", { status: 500 });
+  }
+  if (!CF_TURNSTILE_SECRET_KEY) {
+    return new Response("CF_TURNSTILE_SECRET_KEY must be defined", { status: 500 });
+  }
 
   switch (method) {
     case "GET": {
       const path = url.pathname;
       if (path === "/") {
-        return new Response(mainBody(origin), {
+        return new Response(mainBody(origin, CF_TURNSTILE_SITE_KEY), {
           headers: {
             "content-type": "text/html",
           },
@@ -134,6 +150,36 @@ const fetch = async (request: Request, env: Env, ctx: ExecutionContext) => {
       const formData = await request.formData();
       const rawTxtData = formData.get("txt");
       const isWeb = formData.get("web");
+
+
+      // Validate the token by calling the "/siteverify" API.
+      if (isWeb) {
+        // quick check for web captcha
+        const token = formData.get('cf-turnstile-response');
+        const ip = request.headers.get('CF-Connecting-IP');
+        if (!token) {
+          return new Response("cf-turnstile-response must be defined", { status: 400 });
+        }
+        if (!ip) {
+          return new Response("CF-Connecting-IP header must be defined", { status: 400 });
+        }
+
+        let turnstileFormData = new FormData();
+        turnstileFormData.append('secret', CF_TURNSTILE_SECRET_KEY);
+        turnstileFormData.append('response', token);
+        turnstileFormData.append('remoteip', ip);
+
+        const turnstileResult = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+          body: turnstileFormData,
+          method: 'POST',
+        });
+
+        const outcome = await turnstileResult.json() as any;
+        if (!outcome.success) {
+          return new Response('The provided Turnstile token was not valid! \n' + JSON.stringify(outcome), { status: 400 });
+        }
+  
+      }
 
       if (!rawTxtData) {
         return new Response("txt formData must be defined\n", {
@@ -188,5 +234,5 @@ const fetch = async (request: Request, env: Env, ctx: ExecutionContext) => {
 };
 
 export default {
-  fetch,
+  fetch: main,
 };
