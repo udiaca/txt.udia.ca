@@ -38,7 +38,9 @@ NAME
     txt.udia.ca: command line pastebin.
 
 USAGE
-    &lt;command&gt; | curl -F 'txt=&lt;-' ${origin}
+    &lt;command&gt; | curl -H 'UDIA-SECRET-KEY: udiasecretkeyvalue' -F 'txt=&lt;-' ${origin}
+
+    where udiasecretkeyvalue should be replaced with a valid secret,
 
     or submit using the following form${getForm(origin, cfTurnstileSiteKey)}
 
@@ -55,7 +57,7 @@ DESCRIPTION
     | curl -H 'UDIA-SECRET-KEY: udiasecretkeyvalue' -F 'txt=<-' ${origin}"
 
 EXAMPLES
-    ~$ echo 'print("Hello world!")' | curl -F 'txt=&lt;-' ${origin}
+    ~$ echo 'print("Hello world!")' | curl -H 'UDIA-SECRET-KEY: udiasecretkeyvalue' -F 'txt=&lt;-' ${origin}
        ${origin}/8gad9
     ~$ firefox ${origin}/8gad9?py
 
