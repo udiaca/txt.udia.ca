@@ -3,7 +3,7 @@ main = "src/index.ts"
 compatibility_date = "2022-09-04"
 
 kv_namespaces = [
-  { binding = "txtblob", id = "a79031f374b446cbaf25273b0ee54a5a", preview_id = "7bbb5892ea7c4cb58318102811bb8a3d" }
+  { binding = "txtblob", id = "53cdaacce4db4ab7b6af9a5826327499", preview_id = "7bbb5892ea7c4cb58318102811bb8a3d" }
 ]
 
 [vars]

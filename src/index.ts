@@ -74,7 +74,7 @@ const txtBody = (txtData: string) => `<!DOCTYPE html>
 <pre><code>${txtData}</code></pre>
 </html>`;
 
-const makeId = (len = 5) => {
+const makeId = (len = 4) => {
   const symbols = "abcdefghijklmnopqrstuvwxyz0123456789";
   // random numbers between 0 and 255
   const randByteArr = crypto.getRandomValues(new Uint8Array(len));
