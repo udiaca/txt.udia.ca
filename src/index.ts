@@ -85,10 +85,152 @@ const makeId = (len = 4) => {
   return nId.join("");
 };
 
+const handleGet = async (request: Request, url: URL, env: Env, CF_TURNSTILE_SITE_KEY: string) => {
+  const path = url.pathname;
+  const origin = url.origin;
+
+  if (path === "/") {
+    return new Response(mainBody(origin, CF_TURNSTILE_SITE_KEY), {
+      headers: {
+        "content-type": "text/html",
+      },
+    });
+  }
+  const key = path.slice(1);
+  const rawTxtDataWithMeta = await env.txtblob.getWithMetadata<{
+    createdAt: string;
+  }>(key);
+  const rawTxtData = rawTxtDataWithMeta.value;
+  if (!rawTxtData) {
+    return new Response("not found\n", {
+      status: 404,
+    });
+  }
+  const createdAt = rawTxtDataWithMeta.metadata?.createdAt;
+  const accept = request.headers.get("accept");
+  let resp = new Response(rawTxtData);
+
+  const match = bestMatch(["text/plain", "text/html"], accept || "");
+
+  if (match === "text/html") {
+    const language = url.search.slice(1);
+    const txtHighlightData = !!language
+      ? hljs.highlight(rawTxtData, { language })
+      : hljs.highlightAuto(rawTxtData);
+
+    const detectedLang = txtHighlightData.language;
+    const txtData = txtHighlightData.value;
+
+    resp = new Response(txtBody(txtData), {
+      headers: {
+        "content-type": "text/html",
+      },
+    });
+    if (detectedLang) {
+      resp.headers.set("text-language", detectedLang);
+    }
+  }
+
+  if (createdAt) {
+    resp.headers.set("text-created-at", createdAt);
+  }
+  return resp;
+}
+
+const handlePost = async (request: Request, url: URL, env: Env, CF_TURNSTILE_SECRET_KEY: string, UDIA_SECRET_KEY: string) => {
+  const origin = url.origin;
+  const formData = await request.formData();
+  const rawTxtData = formData.get("txt");
+  const isWeb = formData.get("web");
+
+  if (isWeb) {
+    const token = formData.get('cf-turnstile-response');
+    const ip = request.headers.get('CF-Connecting-IP');
+    if (!token) {
+      return new Response("cf-turnstile-response must be defined", { status: 400 });
+    }
+    if (!ip) {
+      return new Response("CF-Connecting-IP header must be defined", { status: 400 });
+    }
+
+    const turnstileFormData = new FormData();
+    turnstileFormData.append('secret', CF_TURNSTILE_SECRET_KEY);
+    turnstileFormData.append('response', token);
+    turnstileFormData.append('remoteip', ip);
+
+    // Validate the token by calling the "/siteverify" API.
+    const turnstileResult = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      body: turnstileFormData,
+      method: 'POST',
+    });
+
+    const outcome = await turnstileResult.json() as any;
+    if (!outcome.success) {
+      return new Response('The provided Turnstile token was not valid! \n' + JSON.stringify(outcome), { status: 400 });
+    }
+
+  } else {
+    // this is a post request made by something like CURL
+    // ensure the header UDIA_SECRET_KEY is supplied and matches server key
+    const reqUdiaSecretKey = request.headers.get('UDIA-SECRET-KEY');
+    if (!reqUdiaSecretKey) {
+      return new Response("UDIA-SECRET-KEY header must be defined", { status: 400 });
+    }
+    if (reqUdiaSecretKey != UDIA_SECRET_KEY) {
+      return new Response("UDIA-SECRET-KEY header does not match server", { status: 400 });
+    }
+  }
+
+  if (!rawTxtData) {
+    return new Response("txt formData must be defined\n", {
+      status: 400,
+    });
+  }
+
+  const txtData =
+    typeof rawTxtData === "string" ? new TextEncoder().encode(rawTxtData) : rawTxtData.stream();
+
+  const byteSize =
+    typeof rawTxtData === "string"
+      ? new TextEncoder().encode(rawTxtData).byteLength
+      : rawTxtData.size;
+
+  // 500 KiB file size limit
+  const limit = 524288;
+  if (byteSize > limit) {
+    return new Response(
+      `exceeds byte size limit of ${limit} bytes (payload is ${byteSize} bytes)\n`,
+      {
+        status: 413,
+        headers: {
+          limit: `${limit}`,
+          length: `${byteSize}`,
+        },
+      }
+    );
+  }
+
+  const key = makeId();
+  const opt: KVNamespacePutOptions = {
+    expirationTtl: 60 * 60 * 24,
+    metadata: { createdAt: new Date().toISOString() },
+  };
+  await env.txtblob.put(key, txtData, opt);
+  const txtPath = `${origin}/${key}`;
+  if (!!isWeb) {
+    return new Response(txtPath, {
+      status: 302,
+      headers: { location: txtPath },
+    });
+  }
+  return new Response(`${txtPath}\n`, {
+    status: 200,
+  });
+}
+
 const main = async (request: Request, env: Env, ctx: ExecutionContext) => {
   const method = request.method;
   const url = new URL(request.url);
-  const origin = url.origin;
 
   const { CF_TURNSTILE_SITE_KEY, CF_TURNSTILE_SECRET_KEY, UDIA_SECRET_KEY } = env;
 
@@ -104,142 +246,10 @@ const main = async (request: Request, env: Env, ctx: ExecutionContext) => {
 
   switch (method) {
     case "GET": {
-      const path = url.pathname;
-      if (path === "/") {
-        return new Response(mainBody(origin, CF_TURNSTILE_SITE_KEY), {
-          headers: {
-            "content-type": "text/html",
-          },
-        });
-      }
-      const key = path.slice(1);
-      const rawTxtDataWithMeta = await env.txtblob.getWithMetadata<{
-        createdAt: string;
-      }>(key);
-      const rawTxtData = rawTxtDataWithMeta.value;
-      if (!rawTxtData) {
-        return new Response("not found\n", {
-          status: 404,
-        });
-      }
-      const createdAt = rawTxtDataWithMeta.metadata?.createdAt;
-      const accept = request.headers.get("accept");
-      let resp = new Response(rawTxtData);
-
-      const match = bestMatch(["text/plain", "text/html"], accept || "");
-
-      if (match === "text/html") {
-        const language = url.search.slice(1);
-        const txtHighlightData = !!language
-          ? hljs.highlight(rawTxtData, { language })
-          : hljs.highlightAuto(rawTxtData);
-
-        const detectedLang = txtHighlightData.language;
-        const txtData = txtHighlightData.value;
-
-        resp = new Response(txtBody(txtData), {
-          headers: {
-            "content-type": "text/html",
-          },
-        });
-        if (detectedLang) {
-          resp.headers.set("text-language", detectedLang);
-        }
-      }
-
-      if (createdAt) {
-        resp.headers.set("text-created-at", createdAt);
-      }
-      return resp;
+      return await handleGet(request, url, env, CF_TURNSTILE_SITE_KEY)
     }
     case "POST": {
-      const formData = await request.formData();
-      const rawTxtData = formData.get("txt");
-      const isWeb = formData.get("web");
-
-
-      if (isWeb) {
-        const token = formData.get('cf-turnstile-response');
-        const ip = request.headers.get('CF-Connecting-IP');
-        if (!token) {
-          return new Response("cf-turnstile-response must be defined", { status: 400 });
-        }
-        if (!ip) {
-          return new Response("CF-Connecting-IP header must be defined", { status: 400 });
-        }
-
-        const turnstileFormData = new FormData();
-        turnstileFormData.append('secret', CF_TURNSTILE_SECRET_KEY);
-        turnstileFormData.append('response', token);
-        turnstileFormData.append('remoteip', ip);
-
-        // Validate the token by calling the "/siteverify" API.
-        const turnstileResult = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
-          body: turnstileFormData,
-          method: 'POST',
-        });
-
-        const outcome = await turnstileResult.json() as any;
-        if (!outcome.success) {
-          return new Response('The provided Turnstile token was not valid! \n' + JSON.stringify(outcome), { status: 400 });
-        }
-  
-      } else {
-        // this is a post request made by something like CURL
-        // ensure the header UDIA_SECRET_KEY is supplied and matches server key
-        const reqUdiaSecretKey = request.headers.get('UDIA-SECRET-KEY');
-        if (!reqUdiaSecretKey) {
-          return new Response("UDIA-SECRET-KEY header must be defined", { status: 400 });
-        }
-        if (reqUdiaSecretKey != UDIA_SECRET_KEY) {
-          return new Response("UDIA-SECRET-KEY header does not match server", { status: 400 });
-        }
-      }
-
-      if (!rawTxtData) {
-        return new Response("txt formData must be defined\n", {
-          status: 400,
-        });
-      }
-
-      const txtData =
-        typeof rawTxtData === "string" ? rawTxtData : rawTxtData.stream();
-      const byteSize =
-        typeof rawTxtData === "string"
-          ? new TextEncoder().encode(rawTxtData).byteLength
-          : rawTxtData.size;
-
-      // 500 KiB file size limit
-      const limit = 524288;
-      if (byteSize > limit) {
-        return new Response(
-          `exceeds byte size limit of ${limit} bytes (payload is ${byteSize} bytes)\n`,
-          {
-            status: 413,
-            headers: {
-              limit: `${limit}`,
-              length: `${byteSize}`,
-            },
-          }
-        );
-      }
-
-      const key = makeId();
-      const opt: KVNamespacePutOptions = {
-        expirationTtl: 60 * 60 * 24,
-        metadata: { createdAt: new Date().toISOString() },
-      };
-      await env.txtblob.put(key, txtData, opt);
-      const txtPath = `${origin}/${key}`;
-      if (!!isWeb) {
-        return new Response(txtPath, {
-          status: 302,
-          headers: { location: txtPath },
-        });
-      }
-      return new Response(`${txtPath}\n`, {
-        status: 200,
-      });
+      return await handlePost(request, url, env, CF_TURNSTILE_SECRET_KEY, UDIA_SECRET_KEY)
     }
     default:
       return new Response("method not allowed\n", {
