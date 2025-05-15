@@ -1,5 +1,7 @@
 # txt.udia.ca
 
+[![Tests](https://github.com/udiaca/txt.udia.ca/actions/workflows/tests.yml/badge.svg)](https://github.com/udiaca/txt.udia.ca/actions/workflows/tests.yml)
+
 [A command line pastebin](https://txt.udia.ca) running on [Cloudflare Workers](https://workers.cloudflare.com/) using [KV](https://developers.cloudflare.com/kv/) and [Cloudflare Turnstile CAPTCHAs](https://www.cloudflare.com/en-ca/application-services/products/turnstile/).
 
 ## Quickstart
@@ -21,4 +23,4 @@ npm run start
 
 ## License
 
-Licensed under the [WTFPL](http://www.wtfpl.net/).
+Licensed under the [WTFPL](https://www.wtfpl.net/about/).
