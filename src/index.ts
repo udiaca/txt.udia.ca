@@ -89,6 +89,10 @@ const handleGet = async (request: Request, url: URL, env: Env, CF_TURNSTILE_SITE
   const path = url.pathname;
   const origin = url.origin;
 
+  if (path === "/favicon.ico") {
+    return new Response(null, { status: 204 });
+  }
+
   if (path === "/") {
     return new Response(mainBody(origin, CF_TURNSTILE_SITE_KEY), {
       headers: {
@@ -96,6 +100,7 @@ const handleGet = async (request: Request, url: URL, env: Env, CF_TURNSTILE_SITE
       },
     });
   }
+
   const key = path.slice(1);
   const rawTxtDataWithMeta = await env.txtblob.getWithMetadata<{
     createdAt: string;
@@ -106,11 +111,12 @@ const handleGet = async (request: Request, url: URL, env: Env, CF_TURNSTILE_SITE
       status: 404,
     });
   }
+
   const createdAt = rawTxtDataWithMeta.metadata?.createdAt;
   const accept = request.headers.get("accept");
   let resp = new Response(rawTxtData);
 
-  const match = bestMatch(["text/plain", "text/html"], accept || "");
+  const match = bestMatch(["text/plain", "text/html"], accept ?? "");
 
   if (match === "text/html") {
     const language = url.search.slice(1);
@@ -188,11 +194,11 @@ const handlePost = async (request: Request, url: URL, env: Env, CF_TURNSTILE_SEC
   }
 
   const txtData =
-    typeof rawTxtData === "string" ? new TextEncoder().encode(rawTxtData) : rawTxtData.stream();
+    typeof rawTxtData === "string" ? rawTxtData : rawTxtData.stream();
 
   const byteSize =
     typeof rawTxtData === "string"
-      ? new TextEncoder().encode(rawTxtData).byteLength
+      ? new Blob([rawTxtData]).size
       : rawTxtData.size;
 
   // 500 KiB file size limit

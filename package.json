@@ -13,7 +13,7 @@
   },
   "scripts": {
     "start": "wrangler dev",
-    "deploy": "wrangler publish"
+    "deploy": "wrangler deploy"
   },
   "dependencies": {
     "@udia/mime-parser": "^1.0.0",
