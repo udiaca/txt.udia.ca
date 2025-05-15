@@ -15,9 +15,9 @@ npm run start
 
 ## Environment Variables
 
-`CF_TURNSTILE_SITE_KEY`: Cloudflare Turnstile Site Key
-`CF_TURNSTILE_SECRET_KEY`: Cloudflare Turnstile Secret Key
-`UDIA_SECRET_KEY`: Password for shell scripting, curl bypass captcha
+- `CF_TURNSTILE_SITE_KEY`: Cloudflare Turnstile Site Key
+- `CF_TURNSTILE_SECRET_KEY`: Cloudflare Turnstile Secret Key
+- `UDIA_SECRET_KEY`: Password for shell scripting, curl bypass captcha
 
 ## License
 
