@@ -10,6 +10,9 @@ cp .env.example .env
 npm run start
 ```
 
+- `npm run test`: run `vitest`
+- `npm run deploy`: deploy the CF worker to production
+
 ## Environment Variables
 
 `CF_TURNSTILE_SITE_KEY`: Cloudflare Turnstile Site Key

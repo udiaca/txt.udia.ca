@@ -5,10 +5,10 @@
 			"es2021"
 		],
 		"jsx": "react",
-		"module": "es2022",
-		"moduleResolution": "node",
+		"module": "nodenext",
+		"moduleResolution": "nodenext",
 		"types": [
-			"@cloudflare/workers-types"
+			"@cloudflare/vitest-pool-workers"
 		],
 		"resolveJsonModule": true,
 		"allowJs": true,

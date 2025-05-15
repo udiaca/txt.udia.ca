@@ -129,7 +129,7 @@ const handleGet = async (request: Request, url: URL, env: Env, CF_TURNSTILE_SITE
 
     resp = new Response(txtBody(txtData), {
       headers: {
-        "content-type": "text/html",
+        "content-type": "text/html; charset=utf-8",
       },
     });
     if (detectedLang) {
@@ -193,12 +193,14 @@ const handlePost = async (request: Request, url: URL, env: Env, CF_TURNSTILE_SEC
     });
   }
 
+  const txtEncoder = new TextEncoder();
+
   const txtData =
-    typeof rawTxtData === "string" ? rawTxtData : rawTxtData.stream();
+    typeof rawTxtData === "string" ? txtEncoder.encode(rawTxtData) : rawTxtData.stream();
 
   const byteSize =
     typeof rawTxtData === "string"
-      ? new Blob([rawTxtData]).size
+      ? txtEncoder.encode(rawTxtData).byteLength
       : rawTxtData.size;
 
   // 500 KiB file size limit
