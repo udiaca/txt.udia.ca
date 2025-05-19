@@ -2,10 +2,10 @@
   "name": "txt-udia-ca",
   "version": "1.0.0",
   "devDependencies": {
-    "@cloudflare/vitest-pool-workers": "^0.8.29",
+    "@cloudflare/vitest-pool-workers": "^0.8.30",
     "typescript": "^5.8.3",
-    "vitest": "~3.1.0",
-    "wrangler": "4.15.1"
+    "vitest": "~3.1.4",
+    "wrangler": "4.15.2"
   },
   "author": {
     "email": "alex@udia.ca",
