@@ -2,10 +2,10 @@
   "name": "txt-udia-ca",
   "version": "1.0.0",
   "devDependencies": {
-    "@cloudflare/vitest-pool-workers": "^0.8.29",
-    "typescript": "^5.8.3",
-    "vitest": "~3.1.0",
-    "wrangler": "4.15.1"
+    "@cloudflare/vitest-pool-workers": "^0.21.3",
+    "typescript": "^7.0.2",
+    "vitest": "~4.1.10",
+    "wrangler": "4.123.0"
   },
   "author": {
     "email": "alex@udia.ca",
@@ -19,6 +19,6 @@
   },
   "dependencies": {
     "@udia/mime-parser": "^1.0.0",
-    "highlight.js": "^11.11.1"
+    "highlight.js": "^11.12.0"
   }
 }
